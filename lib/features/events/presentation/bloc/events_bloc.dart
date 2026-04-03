@@ -2,7 +2,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/datasources/events_datasource.dart';
 import '../../data/models/event_model.dart';
 
-// Events
 abstract class EventsEvent {}
 
 class EventsLoadRequested extends EventsEvent {
@@ -23,7 +22,26 @@ class EventRegisterRequested extends EventsEvent {
 
 class MyRegistrationsLoadRequested extends EventsEvent {}
 
-// States
+class EventCreateRequested extends EventsEvent {
+  final String title;
+  final String description;
+  final int capacity;
+  final String startTime;
+  final String endTime;
+  final String? imageUrl;
+  final Map<String, dynamic> venue;
+
+  EventCreateRequested({
+    required this.title,
+    required this.description,
+    required this.capacity,
+    required this.startTime,
+    required this.endTime,
+    this.imageUrl,
+    required this.venue,
+  });
+}
+
 abstract class EventsState {}
 
 class EventsInitial extends EventsState {}
@@ -71,7 +89,18 @@ class MyRegistrationsError extends EventsState {
   MyRegistrationsError(this.message);
 }
 
-// BLoC
+class EventCreateLoading extends EventsState {}
+
+class EventCreateSuccess extends EventsState {
+  final EventModel event;
+  EventCreateSuccess(this.event);
+}
+
+class EventCreateError extends EventsState {
+  final String message;
+  EventCreateError(this.message);
+}
+
 class EventsBloc extends Bloc<EventsEvent, EventsState> {
   final EventsDatasource _datasource;
 
@@ -79,6 +108,7 @@ class EventsBloc extends Bloc<EventsEvent, EventsState> {
     on<EventsLoadRequested>(_onLoad);
     on<EventRegisterRequested>(_onRegister);
     on<MyRegistrationsLoadRequested>(_onMyRegistrations);
+    on<EventCreateRequested>(_onCreateEvent);
   }
 
   Future<void> _onLoad(
@@ -125,6 +155,25 @@ class EventsBloc extends Bloc<EventsEvent, EventsState> {
       emit(MyRegistrationsLoaded(result.data!));
     } else {
       emit(MyRegistrationsError(result.failure!.message));
+    }
+  }
+
+  Future<void> _onCreateEvent(
+      EventCreateRequested event, Emitter<EventsState> emit) async {
+    emit(EventCreateLoading());
+    final result = await _datasource.createEvent(
+      title: event.title,
+      description: event.description,
+      capacity: event.capacity,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      imageUrl: event.imageUrl,
+      venue: event.venue,
+    );
+    if (result.isSuccess) {
+      emit(EventCreateSuccess(result.data!));
+    } else {
+      emit(EventCreateError(result.failure!.message));
     }
   }
 }

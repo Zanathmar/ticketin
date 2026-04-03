@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import '../../../features/events/presentation/pages/home_page.dart';
-import '../../../features/checkin/presentation/pages/my_tickets_page.dart';
-import '../../../features/profile/presentation/pages/profile_page.dart';
+import '../../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../theme/app_theme.dart';
 
 class MainShell extends StatelessWidget {
@@ -16,6 +15,10 @@ class MainShell extends StatelessWidget {
     int currentIndex = 0;
     if (location.startsWith('/tickets')) currentIndex = 1;
     if (location.startsWith('/profile')) currentIndex = 2;
+
+    final authState = context.watch<AuthBloc>().state;
+    final isOrganizer = authState is AuthAuthenticated &&
+        (authState.user.isOrganizer || authState.user.isAdmin);
 
     return Scaffold(
       body: child,
@@ -45,7 +48,10 @@ class MainShell extends StatelessWidget {
                   isActive: currentIndex == 1,
                   onTap: () => context.go('/tickets'),
                 ),
-                _ScanButton(onTap: () => context.push('/scan')),
+                if (isOrganizer)
+                  _ScanButton(onTap: () => context.push('/scan'))
+                else
+                  const SizedBox(width: 52),
                 _NavItem(
                   icon: Icons.person_outline,
                   activeIcon: Icons.person,

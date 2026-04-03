@@ -41,6 +41,32 @@ class EventsDatasource {
     }
   }
 
+  Future<ApiResult<EventModel>> createEvent({
+    required String title,
+    required String description,
+    required int capacity,
+    required String startTime,
+    required String endTime,
+    String? imageUrl,
+    required Map<String, dynamic> venue,
+  }) async {
+    try {
+      final response = await _client.post(ApiConstants.events, data: {
+        'title': title,
+        'description': description,
+        'capacity': capacity,
+        'start_time': startTime,
+        'end_time': endTime,
+        if (imageUrl != null && imageUrl.isNotEmpty) 'image_url': imageUrl,
+        'venue': venue,
+      });
+      return ApiResult.success(
+          EventModel.fromJson(response.data as Map<String, dynamic>));
+    } on DioException catch (e) {
+      return ApiResult.error(ApiFailure.fromDioError(e));
+    }
+  }
+
   Future<ApiResult<Map<String, dynamic>>> registerForEvent(int eventId) async {
     try {
       final response = await _client.post(ApiConstants.eventRegister(eventId));

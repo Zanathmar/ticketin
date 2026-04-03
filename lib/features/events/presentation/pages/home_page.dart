@@ -44,12 +44,25 @@ class _HomePageState extends State<HomePage>
 
   @override
   Widget build(BuildContext context) {
-    final user = (context.watch<AuthBloc>().state is AuthAuthenticated)
-        ? (context.read<AuthBloc>().state as AuthAuthenticated).user
-        : null;
+    final authState = context.watch<AuthBloc>().state;
+    final user = authState is AuthAuthenticated ? authState.user : null;
+    final isOrganizer = user != null && (user.isOrganizer || user.isAdmin);
 
     return Scaffold(
       backgroundColor: AppColors.bg,
+      floatingActionButton: isOrganizer
+          ? FloatingActionButton.extended(
+              onPressed: () => context.push('/create-event'),
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add, size: 20),
+              label: const Text('New Event',
+                  style: TextStyle(
+                      fontFamily: 'Syne',
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14)),
+            )
+          : null,
       body: SafeArea(
         child: Column(
           children: [
@@ -83,7 +96,7 @@ class _HomePageState extends State<HomePage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Hello, ${name?.split(' ').first ?? 'there'} 👋',
+                      'Hello, ${name?.split(' ').first ?? 'there'}',
                       style: AppTextStyles.headline2,
                     ),
                     const SizedBox(height: 2),
@@ -101,8 +114,7 @@ class _HomePageState extends State<HomePage>
                   setState(() => _showSearch = !_showSearch);
                   if (!_showSearch) {
                     _searchCtrl.clear();
-                    _loadEvents(
-                        upcoming: _tabController.index == 1);
+                    _loadEvents(upcoming: _tabController.index == 1);
                   }
                 },
               ),
@@ -171,11 +183,6 @@ class _HomePageState extends State<HomePage>
 
   void _handleRegister(EventModel event) {
     context.read<EventsBloc>().add(EventRegisterRequested(event.id));
-    _showRegisterListener(event);
-  }
-
-  void _showRegisterListener(EventModel event) {
-    // Handled in widget tree
   }
 }
 
@@ -229,7 +236,7 @@ class _EventsList extends StatelessWidget {
                 .add(EventsLoadRequested(upcoming: upcoming));
           },
           child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 80),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
             itemCount: events.length,
             itemBuilder: (context, i) => _EventCard(
               event: events[i],
@@ -296,6 +303,11 @@ class _EventCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fmt = DateFormat('EEE, MMM d · h:mm a');
+
+    // Check if current user is organizer/admin to hide register button
+    final authState = context.read<AuthBloc>().state;
+    final isOrganizer = authState is AuthAuthenticated &&
+        (authState.user.isOrganizer || authState.user.isAdmin);
 
     return GestureDetector(
       onTap: () => context.push('/event/${event.id}', extra: event),
@@ -402,13 +414,14 @@ class _EventCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      if (event.isActive && !event.isFull)
+                      if (!isOrganizer && event.isActive && !event.isFull) ...[
+                        const SizedBox(width: 16),
                         ElevatedButton(
                           onPressed: onRegister,
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size(100, 36),
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 16),
                             textStyle: const TextStyle(
                                 fontFamily: 'Syne',
                                 fontSize: 13,
@@ -425,6 +438,7 @@ class _EventCard extends StatelessWidget {
                                 )
                               : const Text('Register'),
                         ),
+                      ],
                     ],
                   ),
                 ],
@@ -443,7 +457,7 @@ class _EventCard extends StatelessWidget {
         color: AppColors.surfaceLight,
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      child: Center(
+      child: const Center(
         child: Icon(Icons.event, size: 48, color: AppColors.cardBorder),
       ),
     );

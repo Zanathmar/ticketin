@@ -7,6 +7,7 @@ import '../../features/events/presentation/pages/home_page.dart';
 import '../../features/checkin/presentation/pages/my_tickets_page.dart';
 import '../../features/checkin/presentation/pages/qr_scanner_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
+import '../../features/events/presentation/pages/create_event_page.dart';
 import '../../shared/widgets/main_shell.dart';
 
 GoRouter createRouter(AuthBloc authBloc) {
@@ -18,27 +19,26 @@ GoRouter createRouter(AuthBloc authBloc) {
       final path = state.uri.path;
       final isAuthRoute = path == '/login' || path == '/register';
 
-      // Still doing the initial check — show a blank splash, don't redirect yet
       if (authState is AuthInitial) return null;
 
-      // AuthLoading during login/register — let it sit on the auth page
-      // AuthLoading during logout — we've already cleared the token so treat
-      // it as unauthenticated to avoid the blank white screen
       if (authState is AuthLoading) {
-        // If we're on an auth route already, stay there
         if (isAuthRoute) return null;
-        // If we're on a protected route and loading, stay — login/register
-        // handles its own loading spinner
         return null;
       }
 
       final isAuthenticated = authState is AuthAuthenticated;
 
-      // Not logged in → redirect to login
       if (!isAuthenticated && !isAuthRoute) return '/login';
-
-      // Already logged in → redirect away from login/register
       if (isAuthenticated && isAuthRoute) return '/home';
+
+      // Guard scanner and create-event routes to organizer/admin only
+      final isOrganizerRoute = path == '/scan' ||
+          path == '/scan-out' ||
+          path == '/create-event';
+      if (isOrganizerRoute && isAuthenticated) {
+        final user = (authState as AuthAuthenticated).user;
+        if (user.isAttendee) return '/home';
+      }
 
       return null;
     },
@@ -62,6 +62,10 @@ GoRouter createRouter(AuthBloc authBloc) {
       GoRoute(
         path: '/scan-out',
         builder: (_, __) => const QrScannerPage(isCheckOut: true),
+      ),
+      GoRoute(
+        path: '/create-event',
+        builder: (_, __) => const CreateEventPage(),
       ),
       GoRoute(
         path: '/my-ticket',
@@ -101,8 +105,8 @@ class _QrDisplayPage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Registration Successful! 🎉',
-                style: TextStyle(
+            Text('Registration Successful!',
+                style: const TextStyle(
                     fontFamily: 'Syne',
                     fontSize: 20,
                     fontWeight: FontWeight.w700)),
