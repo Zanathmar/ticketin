@@ -1,3 +1,5 @@
+import '../../../../core/constants/api_constants.dart';
+
 class VenueModel {
   final int id;
   final String name;
@@ -110,6 +112,16 @@ class EventModel {
           : null,
       createdAt: json['created_at'],
     );
+  }
+
+  /// Resolves the image URL — handles both absolute URLs and relative
+  /// storage paths returned by Laravel (e.g. /storage/events/abc.jpg).
+  String? get resolvedImageUrl {
+    if (imageUrl == null || imageUrl!.isEmpty) return null;
+    if (imageUrl!.startsWith('http')) return imageUrl;
+    // Strip /api suffix from baseUrl then append relative path
+    final base = ApiConstants.baseUrl.replaceFirst(RegExp(r'/api$'), '');
+    return '$base$imageUrl';
   }
 
   bool get isActive => status == 'active';

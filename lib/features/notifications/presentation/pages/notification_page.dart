@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
-import '../../../events/presentation/bloc/events_bloc.dart';
 import '../../../../shared/theme/app_theme.dart';
 
 class NotificationsPage extends StatefulWidget {

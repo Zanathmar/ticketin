@@ -26,6 +26,7 @@ class ApiConstants {
   // Events
   static const events = '/events';
   static String eventById(int id) => '/events/$id';
+  static String eventUpdate(int id) => '/events/$id';
   static String eventAttendees(int id) => '/events/$id/attendees';
   static String eventRegister(int id) => '/events/$id/register';
   static String eventQrCode(int id) => '/events/$id/qr-code';

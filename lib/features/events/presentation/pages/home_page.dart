@@ -304,7 +304,6 @@ class _EventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final fmt = DateFormat('EEE, MMM d · h:mm a');
 
-    // Check if current user is organizer/admin to hide register button
     final authState = context.read<AuthBloc>().state;
     final isOrganizer = authState is AuthAuthenticated &&
         (authState.user.isOrganizer || authState.user.isAdmin);
@@ -321,12 +320,13 @@ class _EventCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (event.imageUrl != null)
+            // Use resolvedImageUrl to handle relative /storage/... paths
+            if (event.resolvedImageUrl != null)
               ClipRRect(
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(16)),
                 child: Image.network(
-                  event.imageUrl!,
+                  event.resolvedImageUrl!,
                   height: 160,
                   width: double.infinity,
                   fit: BoxFit.cover,

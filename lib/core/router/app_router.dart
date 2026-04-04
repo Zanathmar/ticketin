@@ -4,6 +4,9 @@ import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/events/presentation/pages/home_page.dart';
+import '../../features/events/presentation/pages/event_detail_page.dart';
+import '../../features/events/presentation/pages/edit_event_page.dart';
+import '../../features/events/data/models/event_model.dart';
 import '../../features/checkin/presentation/pages/my_tickets_page.dart';
 import '../../features/checkin/presentation/pages/qr_scanner_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
@@ -21,7 +24,7 @@ GoRouter createRouter(AuthBloc authBloc) {
       final isAuthRoute = path == '/login' || path == '/register';
 
       if (authState is AuthInitial) return null;
-      
+
       if (authState is AuthLoading) {
         if (isAuthRoute) return null;
         return null;
@@ -69,6 +72,31 @@ GoRouter createRouter(AuthBloc authBloc) {
         path: '/create-event',
         builder: (_, __) => const CreateEventPage(),
       ),
+
+      // Event detail — safe cast in case extra is lost on web refresh
+      GoRoute(
+        path: '/event/:id',
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra == null || extra is! EventModel) {
+            return const HomePage();
+          }
+          return EventDetailPage(event: extra);
+        },
+      ),
+
+      // Edit event — safe cast in case extra is lost on web refresh
+      GoRoute(
+        path: '/edit-event',
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra == null || extra is! EventModel) {
+            return const HomePage();
+          }
+          return EditEventPage(event: extra);
+        },
+      ),
+
       GoRoute(
         path: '/my-ticket',
         builder: (context, state) {

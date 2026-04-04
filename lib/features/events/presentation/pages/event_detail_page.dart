@@ -44,14 +44,16 @@ class EventDetailPage extends StatelessWidget {
                           _InfoRow(
                             icon: Icons.calendar_today_outlined,
                             label: 'Start',
-                            value: DateFormat('EEE, MMM d, yyyy').format(event.startTime),
+                            value: DateFormat('EEE, MMM d, yyyy')
+                                .format(event.startTime),
                             sub: DateFormat('h:mm a').format(event.startTime),
                           ),
                           _Divider(),
                           _InfoRow(
                             icon: Icons.event_outlined,
                             label: 'End',
-                            value: DateFormat('EEE, MMM d, yyyy').format(event.endTime),
+                            value: DateFormat('EEE, MMM d, yyyy')
+                                .format(event.endTime),
                             sub: DateFormat('h:mm a').format(event.endTime),
                           ),
                         ]),
@@ -62,7 +64,8 @@ class EventDetailPage extends StatelessWidget {
                               icon: Icons.location_on_outlined,
                               label: event.venue!.name,
                               value: event.venue!.address,
-                              sub: '${event.venue!.city}${event.venue!.state != null ? ", ${event.venue!.state}" : ""}, ${event.venue!.country}',
+                              sub:
+                                  '${event.venue!.city}${event.venue!.state != null ? ", ${event.venue!.state}" : ""}, ${event.venue!.country}',
                             ),
                           ]),
                           const SizedBox(height: 14),
@@ -90,7 +93,6 @@ class EventDetailPage extends StatelessWidget {
                 ),
               ],
             ),
-            // Bottom action bar
             Positioned(
               bottom: 0,
               left: 0,
@@ -112,6 +114,12 @@ class _HeroAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    final canEdit = authState is AuthAuthenticated &&
+        (authState.user.isAdmin ||
+            (authState.user.isOrganizer &&
+                event.organizerId == authState.user.id));
+
     return SliverAppBar(
       expandedHeight: 260,
       pinned: true,
@@ -132,10 +140,29 @@ class _HeroAppBar extends StatelessWidget {
           ),
         ),
       ),
+      actions: [
+        if (canEdit)
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: GestureDetector(
+              onTap: () => context.push('/edit-event', extra: event),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.45),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.edit_outlined,
+                    size: 16, color: Colors.white),
+              ),
+            ),
+          ),
+      ],
       flexibleSpace: FlexibleSpaceBar(
-        background: event.imageUrl != null
+        background: event.resolvedImageUrl != null
             ? Image.network(
-                event.imageUrl!,
+                event.resolvedImageUrl!,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => _Placeholder(),
               )
@@ -435,15 +462,15 @@ class _AboutCardState extends State<_AboutCard> {
           AnimatedCrossFade(
             firstChild: Text(
               widget.description,
-              style: AppTextStyles.body.copyWith(
-                  color: AppColors.textSecondary, height: 1.6),
+              style: AppTextStyles.body
+                  .copyWith(color: AppColors.textSecondary, height: 1.6),
               maxLines: 4,
               overflow: TextOverflow.ellipsis,
             ),
             secondChild: Text(
               widget.description,
-              style: AppTextStyles.body.copyWith(
-                  color: AppColors.textSecondary, height: 1.6),
+              style: AppTextStyles.body
+                  .copyWith(color: AppColors.textSecondary, height: 1.6),
             ),
             crossFadeState: _expanded
                 ? CrossFadeState.showSecond
@@ -456,8 +483,8 @@ class _AboutCardState extends State<_AboutCard> {
               onTap: () => setState(() => _expanded = !_expanded),
               child: Text(
                 _expanded ? 'Show less' : 'Read more',
-                style: AppTextStyles.caption
-                    .copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
+                style: AppTextStyles.caption.copyWith(
+                    color: AppColors.primary, fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -499,7 +526,8 @@ class _BottomBar extends StatelessWidget {
 
           if (!event.isActive) {
             return _DisabledButton(
-              label: event.isCancelled ? 'Event Cancelled' : 'Event Completed',
+              label:
+                  event.isCancelled ? 'Event Cancelled' : 'Event Completed',
             );
           }
 
@@ -558,8 +586,8 @@ class _DisabledButton extends StatelessWidget {
             const SizedBox(width: 8),
           ],
           Text(label,
-              style:
-                  AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted)),
+              style: AppTextStyles.bodyMedium
+                  .copyWith(color: AppColors.textMuted)),
         ],
       ),
     );

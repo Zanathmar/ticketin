@@ -2,6 +2,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/datasources/events_datasource.dart';
 import '../../data/models/event_model.dart';
 
+// ─── Events ───────────────────────────────────────────────────────────────────
+
 abstract class EventsEvent {}
 
 class EventsLoadRequested extends EventsEvent {
@@ -45,6 +47,34 @@ class EventCreateRequested extends EventsEvent {
     required this.venue,
   });
 }
+
+class EventUpdateRequested extends EventsEvent {
+  final int id;
+  final String title;
+  final String description;
+  final int capacity;
+  final String startTime;
+  final String endTime;
+  final String? imageUrl;
+  final List<int>? imageBytes;
+  final String? imageFileName;
+  final String? status;
+
+  EventUpdateRequested({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.capacity,
+    required this.startTime,
+    required this.endTime,
+    this.imageUrl,
+    this.imageBytes,
+    this.imageFileName,
+    this.status,
+  });
+}
+
+// ─── States ───────────────────────────────────────────────────────────────────
 
 abstract class EventsState {}
 
@@ -106,6 +136,20 @@ class EventCreateError extends EventsState {
   EventCreateError(this.message);
 }
 
+class EventUpdateLoading extends EventsState {}
+
+class EventUpdateSuccess extends EventsState {
+  final EventModel event;
+  EventUpdateSuccess(this.event);
+}
+
+class EventUpdateError extends EventsState {
+  final String message;
+  EventUpdateError(this.message);
+}
+
+// ─── BLoC ─────────────────────────────────────────────────────────────────────
+
 class EventsBloc extends Bloc<EventsEvent, EventsState> {
   final EventsDatasource _datasource;
 
@@ -114,6 +158,7 @@ class EventsBloc extends Bloc<EventsEvent, EventsState> {
     on<EventRegisterRequested>(_onRegister);
     on<MyRegistrationsLoadRequested>(_onMyRegistrations);
     on<EventCreateRequested>(_onCreateEvent);
+    on<EventUpdateRequested>(_onUpdateEvent);
   }
 
   Future<void> _onLoad(
@@ -181,6 +226,28 @@ class EventsBloc extends Bloc<EventsEvent, EventsState> {
       emit(EventCreateSuccess(result.data!));
     } else {
       emit(EventCreateError(result.failure!.message));
+    }
+  }
+
+  Future<void> _onUpdateEvent(
+      EventUpdateRequested event, Emitter<EventsState> emit) async {
+    emit(EventUpdateLoading());
+    final result = await _datasource.updateEvent(
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      capacity: event.capacity,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      imageUrl: event.imageUrl,
+      imageBytes: event.imageBytes,
+      imageFileName: event.imageFileName,
+      status: event.status,
+    );
+    if (result.isSuccess) {
+      emit(EventUpdateSuccess(result.data!));
+    } else {
+      emit(EventUpdateError(result.failure!.message));
     }
   }
 }
