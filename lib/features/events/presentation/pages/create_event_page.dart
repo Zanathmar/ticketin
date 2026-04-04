@@ -1,6 +1,9 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../bloc/events_bloc.dart';
 import '../../../../shared/theme/app_theme.dart';
@@ -33,6 +36,13 @@ class _CreateEventPageState extends State<CreateEventPage> {
   DateTime? _startTime;
   DateTime? _endTime;
 
+  // Picked image state
+  XFile? _pickedFile;
+  Uint8List? _pickedBytes;
+  bool _useUrlMode = false; // toggle between file picker and URL
+
+  final _imagePicker = ImagePicker();
+
   @override
   void dispose() {
     _titleCtrl.dispose();
@@ -48,6 +58,34 @@ class _CreateEventPageState extends State<CreateEventPage> {
     super.dispose();
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final file = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+      if (file == null || !mounted) return;
+      final bytes = await file.readAsBytes();
+      setState(() {
+        _pickedFile = file;
+        _pickedBytes = bytes;
+        _imageUrlCtrl.clear();
+      });
+    } catch (_) {
+      if (mounted) SnackHelper.error(context, 'Could not access image. Check permissions.');
+    }
+  }
+
+  void _clearImage() {
+    setState(() {
+      _pickedFile = null;
+      _pickedBytes = null;
+      _imageUrlCtrl.clear();
+    });
+  }
+
   Future<void> _pickDateTime({required bool isStart}) async {
     final now = DateTime.now();
     final date = await showDatePicker(
@@ -55,36 +93,17 @@ class _CreateEventPageState extends State<CreateEventPage> {
       initialDate: now.add(const Duration(days: 1)),
       firstDate: now,
       lastDate: now.add(const Duration(days: 365 * 2)),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: AppColors.primary,
-            surface: AppColors.surface,
-            onSurface: AppColors.textPrimary,
-          ),
-        ),
-        child: child!,
-      ),
+      builder: (ctx, child) => _datePickerTheme(ctx, child!),
     );
     if (date == null || !mounted) return;
-
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: AppColors.primary,
-            surface: AppColors.surface,
-            onSurface: AppColors.textPrimary,
-          ),
-        ),
-        child: child!,
-      ),
+      builder: (ctx, child) => _datePickerTheme(ctx, child!),
     );
     if (time == null || !mounted) return;
-
-    final picked = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    final picked =
+        DateTime(date.year, date.month, date.day, time.hour, time.minute);
     setState(() {
       if (isStart) {
         _startTime = picked;
@@ -92,6 +111,19 @@ class _CreateEventPageState extends State<CreateEventPage> {
         _endTime = picked;
       }
     });
+  }
+
+  Widget _datePickerTheme(BuildContext ctx, Widget child) {
+    return Theme(
+      data: Theme.of(ctx).copyWith(
+        colorScheme: const ColorScheme.dark(
+          primary: AppColors.primary,
+          surface: AppColors.surface,
+          onSurface: AppColors.textPrimary,
+        ),
+      ),
+      child: child,
+    );
   }
 
   void _submit() {
@@ -110,6 +142,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
     }
 
     final fmt = DateFormat('yyyy-MM-dd HH:mm:ss');
+    final hasFile = _pickedBytes != null && _pickedFile != null;
+    final urlValue = _imageUrlCtrl.text.trim();
 
     context.read<EventsBloc>().add(EventCreateRequested(
           title: _titleCtrl.text.trim(),
@@ -117,14 +151,20 @@ class _CreateEventPageState extends State<CreateEventPage> {
           capacity: int.parse(_capacityCtrl.text.trim()),
           startTime: fmt.format(_startTime!),
           endTime: fmt.format(_endTime!),
-          imageUrl: _imageUrlCtrl.text.trim().isEmpty ? null : _imageUrlCtrl.text.trim(),
+          imageUrl: (!hasFile && urlValue.isNotEmpty) ? urlValue : null,
+          imageBytes: hasFile ? _pickedBytes!.toList() : null,
+          imageFileName: hasFile ? _pickedFile!.name : null,
           venue: {
             'name': _venueNameCtrl.text.trim(),
             'address': _venueAddressCtrl.text.trim(),
             'city': _venueCityCtrl.text.trim(),
-            'state': _venueStateCtrl.text.trim().isEmpty ? null : _venueStateCtrl.text.trim(),
+            'state': _venueStateCtrl.text.trim().isEmpty
+                ? null
+                : _venueStateCtrl.text.trim(),
             'country': _venueCountryCtrl.text.trim(),
-            'postal_code': _venuePostalCtrl.text.trim().isEmpty ? null : _venuePostalCtrl.text.trim(),
+            'postal_code': _venuePostalCtrl.text.trim().isEmpty
+                ? null
+                : _venuePostalCtrl.text.trim(),
           },
         ));
   }
@@ -159,7 +199,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _SectionHeader(label: 'Event Details'),
+                    _SectionLabel(label: 'Event Details'),
                     const SizedBox(height: 12),
                     AppTextField(
                       controller: _titleCtrl,
@@ -176,11 +216,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
                       maxLines: 3,
                       enabled: !isLoading,
                       style: AppTextStyles.body,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Description',
                         hintText: 'What is this event about?',
                         alignLabelWithHint: true,
-                        prefixIcon: const Padding(
+                        prefixIcon: Padding(
                           padding: EdgeInsets.only(bottom: 40),
                           child: Icon(Icons.description_outlined),
                         ),
@@ -201,59 +241,37 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 14),
-                    AppTextField(
-                      controller: _imageUrlCtrl,
-                      label: 'Image URL (optional)',
-                      hint: 'https://example.com/image.jpg',
-                      prefixIcon: Icons.image_outlined,
-                      keyboardType: TextInputType.url,
-                      enabled: !isLoading,
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return null;
-                        if (!v.startsWith('http')) return 'Enter a valid URL';
-                        return null;
-                      },
-                    ),
-                    if (_imageUrlCtrl.text.isNotEmpty &&
-                        _imageUrlCtrl.text.startsWith('http')) ...[
-                      const SizedBox(height: 10),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          _imageUrlCtrl.text,
-                          height: 160,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            height: 80,
-                            color: AppColors.surfaceLight,
-                            child: const Center(
-                              child: Text('Invalid image URL',
-                                  style: TextStyle(color: AppColors.textMuted)),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
                     const SizedBox(height: 20),
-                    _SectionHeader(label: 'Date & Time'),
+                    _SectionLabel(label: 'Event Image'),
                     const SizedBox(height: 12),
-                    _DateTimePicker(
+                    _ImagePicker(
+                      pickedBytes: _pickedBytes,
+                      pickedFileName: _pickedFile?.name,
+                      urlCtrl: _imageUrlCtrl,
+                      useUrlMode: _useUrlMode,
+                      enabled: !isLoading,
+                      onPickGallery: () => _pickImage(ImageSource.gallery),
+                      onPickCamera: () => _pickImage(ImageSource.camera),
+                      onClear: _clearImage,
+                      onToggleMode: () =>
+                          setState(() => _useUrlMode = !_useUrlMode),
+                    ),
+                    const SizedBox(height: 20),
+                    _SectionLabel(label: 'Date & Time'),
+                    const SizedBox(height: 12),
+                    _DateTimeTile(
                       label: 'Start Time',
                       value: _startTime,
-                      onTap: () => _pickDateTime(isStart: true),
-                      enabled: !isLoading,
+                      onTap: isLoading ? null : () => _pickDateTime(isStart: true),
                     ),
                     const SizedBox(height: 12),
-                    _DateTimePicker(
+                    _DateTimeTile(
                       label: 'End Time',
                       value: _endTime,
-                      onTap: () => _pickDateTime(isStart: false),
-                      enabled: !isLoading,
+                      onTap: isLoading ? null : () => _pickDateTime(isStart: false),
                     ),
                     const SizedBox(height: 20),
-                    _SectionHeader(label: 'Venue'),
+                    _SectionLabel(label: 'Venue'),
                     const SizedBox(height: 12),
                     AppTextField(
                       controller: _venueNameCtrl,
@@ -292,7 +310,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         Expanded(
                           child: AppTextField(
                             controller: _venueStateCtrl,
-                            label: 'State (optional)',
+                            label: 'State',
                             hint: 'NY',
                             prefixIcon: Icons.map_outlined,
                             enabled: !isLoading,
@@ -344,9 +362,344 @@ class _CreateEventPageState extends State<CreateEventPage> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
+// ─── Image Picker Widget ──────────────────────────────────────────────────────
+
+class _ImagePicker extends StatelessWidget {
+  final Uint8List? pickedBytes;
+  final String? pickedFileName;
+  final TextEditingController urlCtrl;
+  final bool useUrlMode;
+  final bool enabled;
+  final VoidCallback onPickGallery;
+  final VoidCallback onPickCamera;
+  final VoidCallback onClear;
+  final VoidCallback onToggleMode;
+
+  const _ImagePicker({
+    required this.pickedBytes,
+    required this.pickedFileName,
+    required this.urlCtrl,
+    required this.useUrlMode,
+    required this.enabled,
+    required this.onPickGallery,
+    required this.onPickCamera,
+    required this.onClear,
+    required this.onToggleMode,
+  });
+
+  bool get _hasFile => pickedBytes != null;
+  bool get _hasUrl => urlCtrl.text.isNotEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Mode toggle
+        Row(
+          children: [
+            _ModeChip(
+              label: 'From Device',
+              icon: Icons.photo_library_outlined,
+              selected: !useUrlMode,
+              onTap: enabled ? onToggleMode : null,
+            ),
+            const SizedBox(width: 10),
+            _ModeChip(
+              label: 'From URL',
+              icon: Icons.link_rounded,
+              selected: useUrlMode,
+              onTap: enabled ? onToggleMode : null,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        if (!useUrlMode) ...[
+          // File picker mode
+          if (_hasFile) ...[
+            _ImagePreviewBox(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.memory(pickedBytes!,
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover),
+              ),
+              onClear: onClear,
+              label: pickedFileName ?? 'image',
+            ),
+          ] else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: _PickerButton(
+                    icon: Icons.photo_library_outlined,
+                    label: 'Gallery',
+                    onTap: enabled ? onPickGallery : null,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _PickerButton(
+                    icon: Icons.camera_alt_outlined,
+                    label: 'Camera',
+                    onTap: (!kIsWeb && enabled) ? onPickCamera : null,
+                    disabled: kIsWeb,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ] else ...[
+          // URL mode
+          StatefulBuilder(
+            builder: (context, setSub) {
+              return Column(
+                children: [
+                  TextFormField(
+                    controller: urlCtrl,
+                    enabled: enabled,
+                    style: AppTextStyles.body,
+                    keyboardType: TextInputType.url,
+                    onChanged: (_) => setSub(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'Image URL',
+                      hintText: 'https://example.com/image.jpg',
+                      prefixIcon: const Icon(Icons.link_rounded),
+                      suffixIcon: urlCtrl.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear,
+                                  color: AppColors.textMuted, size: 18),
+                              onPressed: () {
+                                urlCtrl.clear();
+                                setSub(() {});
+                              },
+                            )
+                          : null,
+                    ),
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return null;
+                      if (!v.startsWith('http')) return 'Enter a valid URL';
+                      return null;
+                    },
+                  ),
+                  if (_hasUrl && urlCtrl.text.startsWith('http')) ...[
+                    const SizedBox(height: 10),
+                    _ImagePreviewBox(
+                      label: 'Preview',
+                      onClear: null,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          urlCtrl.text,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Center(
+                            child: Text('Cannot load image',
+                                style: TextStyle(color: AppColors.textMuted)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
+
+        const SizedBox(height: 6),
+        Text(
+          'Optional — leave empty to skip the cover image.',
+          style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+        ),
+      ],
+    );
+  }
+}
+
+class _ImagePreviewBox extends StatelessWidget {
+  final Widget child;
+  final VoidCallback? onClear;
   final String label;
-  const _SectionHeader({required this.label});
+
+  const _ImagePreviewBox({
+    required this.child,
+    required this.label,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Container(
+          height: 180,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.cardBorder),
+          ),
+          child: child,
+        ),
+        if (onClear != null)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: GestureDetector(
+              onTap: onClear,
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, color: Colors.white, size: 16),
+              ),
+            ),
+          ),
+        Positioned(
+          bottom: 8,
+          left: 8,
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.55),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              label,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontFamily: 'DMSans'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PickerButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  final bool disabled;
+
+  const _PickerButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.disabled = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final active = !disabled && onTap != null;
+    return GestureDetector(
+      onTap: active ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: active
+              ? AppColors.primary.withOpacity(0.08)
+              : AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: active ? AppColors.primary.withOpacity(0.4) : AppColors.cardBorder,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon,
+                size: 28,
+                color: active ? AppColors.primary : AppColors.textMuted),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: AppTextStyles.caption.copyWith(
+                color: active ? AppColors.primary : AppColors.textMuted,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            if (disabled)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text('(not on web)',
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.textMuted, fontSize: 10)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  const _ModeChip({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary.withOpacity(0.15)
+              : AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.cardBorder,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: 15,
+                color: selected ? AppColors.primary : AppColors.textMuted),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: AppTextStyles.caption.copyWith(
+                color: selected ? AppColors.primary : AppColors.textMuted,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Shared helpers ───────────────────────────────────────────────────────────
+
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  const _SectionLabel({required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -369,24 +722,22 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _DateTimePicker extends StatelessWidget {
+class _DateTimeTile extends StatelessWidget {
   final String label;
   final DateTime? value;
-  final VoidCallback onTap;
-  final bool enabled;
+  final VoidCallback? onTap;
 
-  const _DateTimePicker({
+  const _DateTimeTile({
     required this.label,
     required this.value,
     required this.onTap,
-    required this.enabled,
   });
 
   @override
   Widget build(BuildContext context) {
     final fmt = DateFormat('EEE, MMM d, yyyy  ·  h:mm a');
     return GestureDetector(
-      onTap: enabled ? onTap : null,
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
@@ -411,7 +762,8 @@ class _DateTimePicker extends StatelessWidget {
                     value != null ? fmt.format(value!) : 'Tap to select',
                     style: value != null
                         ? AppTextStyles.bodyMedium
-                        : AppTextStyles.body.copyWith(color: AppColors.textMuted),
+                        : AppTextStyles.body
+                            .copyWith(color: AppColors.textMuted),
                   ),
                 ],
               ),

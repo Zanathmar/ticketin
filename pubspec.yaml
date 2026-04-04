@@ -29,8 +29,11 @@ dependencies:
   # Navigation
   go_router: ^13.0.1
 
-  # UI
+  # Image
+  image_picker: ^1.1.2
   cached_network_image: ^3.3.1
+
+  # UI
   shimmer: ^3.0.0
   lottie: ^3.1.0
   flutter_animate: ^4.5.0

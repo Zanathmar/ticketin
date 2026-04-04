@@ -29,6 +29,8 @@ class EventCreateRequested extends EventsEvent {
   final String startTime;
   final String endTime;
   final String? imageUrl;
+  final List<int>? imageBytes;
+  final String? imageFileName;
   final Map<String, dynamic> venue;
 
   EventCreateRequested({
@@ -38,6 +40,8 @@ class EventCreateRequested extends EventsEvent {
     required this.startTime,
     required this.endTime,
     this.imageUrl,
+    this.imageBytes,
+    this.imageFileName,
     required this.venue,
   });
 }
@@ -68,7 +72,8 @@ class EventRegistered extends EventsState {
   final List<EventModel> events;
   final String qrData;
   final String message;
-  EventRegistered({required this.events, required this.qrData, required this.message});
+  EventRegistered(
+      {required this.events, required this.qrData, required this.message});
 }
 
 class EventRegisterError extends EventsState {
@@ -168,6 +173,8 @@ class EventsBloc extends Bloc<EventsEvent, EventsState> {
       startTime: event.startTime,
       endTime: event.endTime,
       imageUrl: event.imageUrl,
+      imageBytes: event.imageBytes,
+      imageFileName: event.imageFileName,
       venue: event.venue,
     );
     if (result.isSuccess) {

@@ -41,6 +41,9 @@ class EventsDatasource {
     }
   }
 
+  // imageBytes + imageFileName → sends as multipart FormData
+  // imageUrl → sends as plain JSON field
+  // neither → no image field sent
   Future<ApiResult<EventModel>> createEvent({
     required String title,
     required String description,
@@ -48,20 +51,54 @@ class EventsDatasource {
     required String startTime,
     required String endTime,
     String? imageUrl,
+    List<int>? imageBytes,
+    String? imageFileName,
     required Map<String, dynamic> venue,
   }) async {
     try {
-      final response = await _client.post(ApiConstants.events, data: {
-        'title': title,
-        'description': description,
-        'capacity': capacity,
-        'start_time': startTime,
-        'end_time': endTime,
-        if (imageUrl != null && imageUrl.isNotEmpty) 'image_url': imageUrl,
-        'venue': venue,
-      });
-      return ApiResult.success(
-          EventModel.fromJson(response.data as Map<String, dynamic>));
+      final bool hasFile = imageBytes != null && imageBytes.isNotEmpty;
+
+      if (hasFile) {
+        // Flatten venue map for FormData (multipart doesn't support nested objects)
+        final formMap = <String, dynamic>{
+          'title': title,
+          'description': description,
+          'capacity': capacity.toString(),
+          'start_time': startTime,
+          'end_time': endTime,
+          'venue[name]': venue['name'],
+          'venue[address]': venue['address'],
+          'venue[city]': venue['city'],
+          if (venue['state'] != null) 'venue[state]': venue['state'],
+          'venue[country]': venue['country'],
+          if (venue['postal_code'] != null) 'venue[postal_code]': venue['postal_code'],
+          'image': MultipartFile.fromBytes(
+            imageBytes,
+            filename: imageFileName ?? 'event_image.jpg',
+          ),
+        };
+
+        final formData = FormData.fromMap(formMap);
+        final response = await _client.post(
+          ApiConstants.events,
+          data: formData,
+          options: Options(contentType: 'multipart/form-data'),
+        );
+        return ApiResult.success(
+            EventModel.fromJson(response.data as Map<String, dynamic>));
+      } else {
+        final response = await _client.post(ApiConstants.events, data: {
+          'title': title,
+          'description': description,
+          'capacity': capacity,
+          'start_time': startTime,
+          'end_time': endTime,
+          if (imageUrl != null && imageUrl.isNotEmpty) 'image_url': imageUrl,
+          'venue': venue,
+        });
+        return ApiResult.success(
+            EventModel.fromJson(response.data as Map<String, dynamic>));
+      }
     } on DioException catch (e) {
       return ApiResult.error(ApiFailure.fromDioError(e));
     }

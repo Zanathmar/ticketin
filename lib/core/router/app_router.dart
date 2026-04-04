@@ -8,6 +8,7 @@ import '../../features/checkin/presentation/pages/my_tickets_page.dart';
 import '../../features/checkin/presentation/pages/qr_scanner_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/events/presentation/pages/create_event_page.dart';
+import '../../features/notifications/presentation/pages/notification_page.dart';
 import '../../shared/widgets/main_shell.dart';
 
 GoRouter createRouter(AuthBloc authBloc) {
@@ -20,7 +21,7 @@ GoRouter createRouter(AuthBloc authBloc) {
       final isAuthRoute = path == '/login' || path == '/register';
 
       if (authState is AuthInitial) return null;
-
+      
       if (authState is AuthLoading) {
         if (isAuthRoute) return null;
         return null;
@@ -31,10 +32,8 @@ GoRouter createRouter(AuthBloc authBloc) {
       if (!isAuthenticated && !isAuthRoute) return '/login';
       if (isAuthenticated && isAuthRoute) return '/home';
 
-      // Guard scanner and create-event routes to organizer/admin only
-      final isOrganizerRoute = path == '/scan' ||
-          path == '/scan-out' ||
-          path == '/create-event';
+      final isOrganizerRoute =
+          path == '/scan' || path == '/scan-out' || path == '/create-event';
       if (isOrganizerRoute && isAuthenticated) {
         final user = (authState as AuthAuthenticated).user;
         if (user.isAttendee) return '/home';
@@ -51,6 +50,9 @@ GoRouter createRouter(AuthBloc authBloc) {
         routes: [
           GoRoute(path: '/home', builder: (_, __) => const HomePage()),
           GoRoute(path: '/tickets', builder: (_, __) => const MyTicketsPage()),
+          GoRoute(
+              path: '/notifications',
+              builder: (_, __) => const NotificationsPage()),
           GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
         ],
       ),
@@ -105,8 +107,8 @@ class _QrDisplayPage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Registration Successful!',
-                style: const TextStyle(
+            const Text('Registration Successful!',
+                style: TextStyle(
                     fontFamily: 'Syne',
                     fontSize: 20,
                     fontWeight: FontWeight.w700)),

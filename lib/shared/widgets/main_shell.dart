@@ -11,14 +11,14 @@ class MainShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
-
-    int currentIndex = 0;
-    if (location.startsWith('/tickets')) currentIndex = 1;
-    if (location.startsWith('/profile')) currentIndex = 2;
-
     final authState = context.watch<AuthBloc>().state;
     final isOrganizer = authState is AuthAuthenticated &&
         (authState.user.isOrganizer || authState.user.isAdmin);
+
+    int currentIndex = 0;
+    if (location.startsWith('/tickets')) currentIndex = 1;
+    if (location.startsWith('/notifications')) currentIndex = 2;
+    if (location.startsWith('/profile')) currentIndex = 3;
 
     return Scaffold(
       body: child,
@@ -30,40 +30,100 @@ class MainShell extends StatelessWidget {
         child: SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _NavItem(
-                  icon: Icons.explore_outlined,
-                  activeIcon: Icons.explore,
-                  label: 'Explore',
-                  isActive: currentIndex == 0,
-                  onTap: () => context.go('/home'),
-                ),
-                _NavItem(
-                  icon: Icons.confirmation_number_outlined,
-                  activeIcon: Icons.confirmation_number,
-                  label: 'Tickets',
-                  isActive: currentIndex == 1,
-                  onTap: () => context.go('/tickets'),
-                ),
-                if (isOrganizer)
-                  _ScanButton(onTap: () => context.push('/scan'))
-                else
-                  const SizedBox(width: 52),
-                _NavItem(
-                  icon: Icons.person_outline,
-                  activeIcon: Icons.person,
-                  label: 'Profile',
-                  isActive: currentIndex == 2,
-                  onTap: () => context.go('/profile'),
-                ),
-              ],
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: isOrganizer
+                ? _OrganizerNavBar(currentIndex: currentIndex)
+                : _AttendeeNavBar(currentIndex: currentIndex),
           ),
         ),
       ),
+    );
+  }
+}
+
+// 5-slot: Explore | Tickets | [Scan FAB] | Inbox | Profile
+class _OrganizerNavBar extends StatelessWidget {
+  final int currentIndex;
+  const _OrganizerNavBar({required this.currentIndex});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _NavItem(
+          icon: Icons.explore_outlined,
+          activeIcon: Icons.explore,
+          label: 'Explore',
+          isActive: currentIndex == 0,
+          onTap: () => context.go('/home'),
+        ),
+        _NavItem(
+          icon: Icons.confirmation_number_outlined,
+          activeIcon: Icons.confirmation_number,
+          label: 'Tickets',
+          isActive: currentIndex == 1,
+          onTap: () => context.go('/tickets'),
+        ),
+        _ScanFab(onTap: () => context.push('/scan')),
+        _NavItem(
+          icon: Icons.notifications_outlined,
+          activeIcon: Icons.notifications,
+          label: 'Inbox',
+          isActive: currentIndex == 2,
+          onTap: () => context.go('/notifications'),
+        ),
+        _NavItem(
+          icon: Icons.person_outline,
+          activeIcon: Icons.person,
+          label: 'Profile',
+          isActive: currentIndex == 3,
+          onTap: () => context.go('/profile'),
+        ),
+      ],
+    );
+  }
+}
+
+// 4-slot: Explore | Tickets | Inbox | Profile
+class _AttendeeNavBar extends StatelessWidget {
+  final int currentIndex;
+  const _AttendeeNavBar({required this.currentIndex});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _NavItem(
+          icon: Icons.explore_outlined,
+          activeIcon: Icons.explore,
+          label: 'Explore',
+          isActive: currentIndex == 0,
+          onTap: () => context.go('/home'),
+        ),
+        _NavItem(
+          icon: Icons.confirmation_number_outlined,
+          activeIcon: Icons.confirmation_number,
+          label: 'Tickets',
+          isActive: currentIndex == 1,
+          onTap: () => context.go('/tickets'),
+        ),
+        _NavItem(
+          icon: Icons.notifications_outlined,
+          activeIcon: Icons.notifications,
+          label: 'Inbox',
+          isActive: currentIndex == 2,
+          onTap: () => context.go('/notifications'),
+        ),
+        _NavItem(
+          icon: Icons.person_outline,
+          activeIcon: Icons.person,
+          label: 'Profile',
+          isActive: currentIndex == 3,
+          onTap: () => context.go('/profile'),
+        ),
+      ],
     );
   }
 }
@@ -89,7 +149,7 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -115,9 +175,9 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-class _ScanButton extends StatelessWidget {
+class _ScanFab extends StatelessWidget {
   final VoidCallback onTap;
-  const _ScanButton({required this.onTap});
+  const _ScanFab({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
