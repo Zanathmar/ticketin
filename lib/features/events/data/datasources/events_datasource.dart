@@ -41,69 +41,30 @@ class EventsDatasource {
     }
   }
 
-  /// Create event — supports multipart file upload or plain JSON with URL.
   Future<ApiResult<EventModel>> createEvent({
     required String title,
     required String description,
     required int capacity,
     required String startTime,
     required String endTime,
-    String? imageUrl,
-    List<int>? imageBytes,
-    String? imageFileName,
     required Map<String, dynamic> venue,
   }) async {
     try {
-      final bool hasFile = imageBytes != null && imageBytes.isNotEmpty;
-
-      if (hasFile) {
-        // Flatten venue map for FormData (multipart doesn't support nested objects)
-        final formData = FormData.fromMap({
-          'title': title,
-          'description': description,
-          'capacity': capacity.toString(),
-          'start_time': startTime,
-          'end_time': endTime,
-          'venue[name]': venue['name'],
-          'venue[address]': venue['address'],
-          'venue[city]': venue['city'],
-          if (venue['state'] != null) 'venue[state]': venue['state'],
-          'venue[country]': venue['country'],
-          if (venue['postal_code'] != null)
-            'venue[postal_code]': venue['postal_code'],
-          'image': MultipartFile.fromBytes(
-            imageBytes,
-            filename: imageFileName ?? 'event_image.jpg',
-          ),
-        });
-
-        final response = await _client.post(
-          ApiConstants.events,
-          data: formData,
-          options: Options(contentType: 'multipart/form-data'),
-        );
-        return ApiResult.success(
-            EventModel.fromJson(response.data as Map<String, dynamic>));
-      } else {
-        final response = await _client.post(ApiConstants.events, data: {
-          'title': title,
-          'description': description,
-          'capacity': capacity,
-          'start_time': startTime,
-          'end_time': endTime,
-          if (imageUrl != null && imageUrl.isNotEmpty) 'image_url': imageUrl,
-          'venue': venue,
-        });
-        return ApiResult.success(
-            EventModel.fromJson(response.data as Map<String, dynamic>));
-      }
+      final response = await _client.post(ApiConstants.events, data: {
+        'title': title,
+        'description': description,
+        'capacity': capacity,
+        'start_time': startTime,
+        'end_time': endTime,
+        'venue': venue,
+      });
+      return ApiResult.success(
+          EventModel.fromJson(response.data as Map<String, dynamic>));
     } on DioException catch (e) {
       return ApiResult.error(ApiFailure.fromDioError(e));
     }
   }
 
-  /// Update event — supports multipart file upload (POST with _method=PUT)
-  /// or plain PUT with JSON / URL.
   Future<ApiResult<EventModel>> updateEvent({
     required int id,
     required String title,
@@ -111,50 +72,19 @@ class EventsDatasource {
     required int capacity,
     required String startTime,
     required String endTime,
-    String? imageUrl,
-    List<int>? imageBytes,
-    String? imageFileName,
     String? status,
   }) async {
     try {
-      final bool hasFile = imageBytes != null && imageBytes.isNotEmpty;
-
-      if (hasFile) {
-        // Laravel doesn't support PUT with multipart, so we POST with _method=PUT
-        final formData = FormData.fromMap({
-          '_method': 'PUT',
-          'title': title,
-          'description': description,
-          'capacity': capacity.toString(),
-          'start_time': startTime,
-          'end_time': endTime,
-          if (status != null) 'status': status,
-          'image': MultipartFile.fromBytes(
-            imageBytes,
-            filename: imageFileName ?? 'event_image.jpg',
-          ),
-        });
-
-        final response = await _client.post(
-          ApiConstants.eventById(id),
-          data: formData,
-          options: Options(contentType: 'multipart/form-data'),
-        );
-        return ApiResult.success(
-            EventModel.fromJson(response.data as Map<String, dynamic>));
-      } else {
-        final response = await _client.put(ApiConstants.eventById(id), data: {
-          'title': title,
-          'description': description,
-          'capacity': capacity,
-          'start_time': startTime,
-          'end_time': endTime,
-          if (imageUrl != null && imageUrl.isNotEmpty) 'image_url': imageUrl,
-          if (status != null) 'status': status,
-        });
-        return ApiResult.success(
-            EventModel.fromJson(response.data as Map<String, dynamic>));
-      }
+      final response = await _client.put(ApiConstants.eventById(id), data: {
+        'title': title,
+        'description': description,
+        'capacity': capacity,
+        'start_time': startTime,
+        'end_time': endTime,
+        if (status != null) 'status': status,
+      });
+      return ApiResult.success(
+          EventModel.fromJson(response.data as Map<String, dynamic>));
     } on DioException catch (e) {
       return ApiResult.error(ApiFailure.fromDioError(e));
     }

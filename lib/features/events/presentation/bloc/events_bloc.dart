@@ -2,8 +2,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/datasources/events_datasource.dart';
 import '../../data/models/event_model.dart';
 
-// ─── Events ───────────────────────────────────────────────────────────────────
-
 abstract class EventsEvent {}
 
 class EventsLoadRequested extends EventsEvent {
@@ -30,9 +28,6 @@ class EventCreateRequested extends EventsEvent {
   final int capacity;
   final String startTime;
   final String endTime;
-  final String? imageUrl;
-  final List<int>? imageBytes;
-  final String? imageFileName;
   final Map<String, dynamic> venue;
 
   EventCreateRequested({
@@ -41,9 +36,6 @@ class EventCreateRequested extends EventsEvent {
     required this.capacity,
     required this.startTime,
     required this.endTime,
-    this.imageUrl,
-    this.imageBytes,
-    this.imageFileName,
     required this.venue,
   });
 }
@@ -55,9 +47,6 @@ class EventUpdateRequested extends EventsEvent {
   final int capacity;
   final String startTime;
   final String endTime;
-  final String? imageUrl;
-  final List<int>? imageBytes;
-  final String? imageFileName;
   final String? status;
 
   EventUpdateRequested({
@@ -67,14 +56,9 @@ class EventUpdateRequested extends EventsEvent {
     required this.capacity,
     required this.startTime,
     required this.endTime,
-    this.imageUrl,
-    this.imageBytes,
-    this.imageFileName,
     this.status,
   });
 }
-
-// ─── States ───────────────────────────────────────────────────────────────────
 
 abstract class EventsState {}
 
@@ -148,8 +132,6 @@ class EventUpdateError extends EventsState {
   EventUpdateError(this.message);
 }
 
-// ─── BLoC ─────────────────────────────────────────────────────────────────────
-
 class EventsBloc extends Bloc<EventsEvent, EventsState> {
   final EventsDatasource _datasource;
 
@@ -217,9 +199,6 @@ class EventsBloc extends Bloc<EventsEvent, EventsState> {
       capacity: event.capacity,
       startTime: event.startTime,
       endTime: event.endTime,
-      imageUrl: event.imageUrl,
-      imageBytes: event.imageBytes,
-      imageFileName: event.imageFileName,
       venue: event.venue,
     );
     if (result.isSuccess) {
@@ -239,9 +218,6 @@ class EventsBloc extends Bloc<EventsEvent, EventsState> {
       capacity: event.capacity,
       startTime: event.startTime,
       endTime: event.endTime,
-      imageUrl: event.imageUrl,
-      imageBytes: event.imageBytes,
-      imageFileName: event.imageFileName,
       status: event.status,
     );
     if (result.isSuccess) {

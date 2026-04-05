@@ -127,7 +127,8 @@ class _HomePageState extends State<HomePage>
               style: AppTextStyles.body,
               decoration: InputDecoration(
                 hintText: 'Search events...',
-                prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
+                prefixIcon:
+                    const Icon(Icons.search, color: AppColors.textMuted),
                 filled: true,
                 fillColor: AppColors.surfaceLight,
                 border: OutlineInputBorder(
@@ -144,8 +145,8 @@ class _HomePageState extends State<HomePage>
                 ),
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
               ),
-              onSubmitted: (val) => _loadEvents(
-                  upcoming: _tabController.index == 1, search: val),
+              onSubmitted: (val) =>
+                  _loadEvents(upcoming: _tabController.index == 1, search: val),
             ),
           ],
           const SizedBox(height: 8),
@@ -219,22 +220,15 @@ class _EventsList extends StatelessWidget {
         if (state is EventRegistered) events = state.events;
         if (state is EventRegisterError) events = state.events;
 
-        if (state is EventsError) {
-          return _buildError(context, state.message);
-        }
-
-        if (events.isEmpty) {
-          return _buildEmpty();
-        }
+        if (state is EventsError) return _buildError(context, state.message);
+        if (events.isEmpty) return _buildEmpty();
 
         return RefreshIndicator(
           color: AppColors.primary,
           backgroundColor: AppColors.surface,
-          onRefresh: () async {
-            context
-                .read<EventsBloc>()
-                .add(EventsLoadRequested(upcoming: upcoming));
-          },
+          onRefresh: () async => context
+              .read<EventsBloc>()
+              .add(EventsLoadRequested(upcoming: upcoming)),
           child: ListView.builder(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
             itemCount: events.length,
@@ -303,7 +297,6 @@ class _EventCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fmt = DateFormat('EEE, MMM d · h:mm a');
-
     final authState = context.read<AuthBloc>().state;
     final isOrganizer = authState is AuthAuthenticated &&
         (authState.user.isOrganizer || authState.user.isAdmin);
@@ -320,21 +313,29 @@ class _EventCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Use resolvedImageUrl to handle relative /storage/... paths
-            if (event.resolvedImageUrl != null)
-              ClipRRect(
+            // Gradient placeholder header replacing the image
+            Container(
+              height: 100,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.primary.withOpacity(0.18),
+                    AppColors.primaryLight.withOpacity(0.08),
+                  ],
+                ),
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(16)),
-                child: Image.network(
-                  event.resolvedImageUrl!,
-                  height: 160,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _buildImagePlaceholder(),
+              ),
+              child: Center(
+                child: Icon(
+                  Icons.event_rounded,
+                  size: 40,
+                  color: AppColors.primary.withOpacity(0.4),
                 ),
-              )
-            else
-              _buildImagePlaceholder(),
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -449,19 +450,6 @@ class _EventCard extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildImagePlaceholder() {
-    return Container(
-      height: 140,
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: const Center(
-        child: Icon(Icons.event, size: 48, color: AppColors.cardBorder),
-      ),
-    );
-  }
 }
 
 class _StatusBadge extends StatelessWidget {
@@ -495,10 +483,8 @@ class _StatusBadge extends StatelessWidget {
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-      ),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
       child: Text(label,
           style: AppTextStyles.label.copyWith(color: fg, letterSpacing: 0)),
     );

@@ -121,7 +121,7 @@ class _HeroAppBar extends StatelessWidget {
                 event.organizerId == authState.user.id));
 
     return SliverAppBar(
-      expandedHeight: 260,
+      expandedHeight: 220,
       pinned: true,
       backgroundColor: AppColors.bg,
       leading: Padding(
@@ -159,26 +159,28 @@ class _HeroAppBar extends StatelessWidget {
             ),
           ),
       ],
-      flexibleSpace: FlexibleSpaceBar(
-        background: event.resolvedImageUrl != null
-            ? Image.network(
-                event.resolvedImageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _Placeholder(),
-              )
-            : _Placeholder(),
+      flexibleSpace: const FlexibleSpaceBar(
+        background: _EventPlaceholder(),
       ),
     );
   }
 }
 
-class _Placeholder extends StatelessWidget {
+class _EventPlaceholder extends StatelessWidget {
+  const _EventPlaceholder();
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.surfaceLight,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1E2235), Color(0xFF151827)],
+        ),
+      ),
       child: const Center(
-        child: Icon(Icons.event, size: 72, color: AppColors.cardBorder),
+        child: Icon(Icons.event_rounded, size: 72, color: AppColors.cardBorder),
       ),
     );
   }
@@ -192,10 +194,10 @@ class _StatusRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      spacing: 8,
       children: [
         _StatusBadge(status: event.status),
-        const SizedBox(width: 8),
         if (event.isOngoing)
           _TagBadge(
               label: 'Happening Now',
@@ -523,18 +525,15 @@ class _BottomBar extends StatelessWidget {
               icon: Icons.visibility_outlined,
             );
           }
-
           if (!event.isActive) {
             return _DisabledButton(
               label:
                   event.isCancelled ? 'Event Cancelled' : 'Event Completed',
             );
           }
-
           if (event.isPast) {
             return _DisabledButton(label: 'Event Has Ended');
           }
-
           if (event.isFull) {
             return _DisabledButton(label: 'Event Full');
           }

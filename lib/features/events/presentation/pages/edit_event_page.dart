@@ -1,8 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../bloc/events_bloc.dart';
 import '../../data/models/event_model.dart';
@@ -25,17 +23,10 @@ class _EditEventPageState extends State<EditEventPage> {
   late final TextEditingController _titleCtrl;
   late final TextEditingController _descCtrl;
   late final TextEditingController _capacityCtrl;
-  late final TextEditingController _imageUrlCtrl;
 
   late DateTime? _startTime;
   late DateTime? _endTime;
   late String _status;
-
-  XFile? _pickedFile;
-  Uint8List? _pickedBytes;
-  bool _useUrlMode = false;
-
-  final _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -43,12 +34,9 @@ class _EditEventPageState extends State<EditEventPage> {
     _titleCtrl    = TextEditingController(text: widget.event.title);
     _descCtrl     = TextEditingController(text: widget.event.description ?? '');
     _capacityCtrl = TextEditingController(text: widget.event.capacity.toString());
-    // Use resolvedImageUrl so the preview works correctly
-    _imageUrlCtrl = TextEditingController(text: widget.event.resolvedImageUrl ?? '');
     _startTime    = widget.event.startTime;
     _endTime      = widget.event.endTime;
     _status       = widget.event.status;
-    _useUrlMode   = (widget.event.resolvedImageUrl ?? '').isNotEmpty;
   }
 
   @override
@@ -56,29 +44,7 @@ class _EditEventPageState extends State<EditEventPage> {
     _titleCtrl.dispose();
     _descCtrl.dispose();
     _capacityCtrl.dispose();
-    _imageUrlCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickImage() async {
-    try {
-      final file = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1920,
-        maxHeight: 1080,
-        imageQuality: 85,
-      );
-      if (file == null || !mounted) return;
-      final bytes = await file.readAsBytes();
-      setState(() {
-        _pickedFile   = file;
-        _pickedBytes  = bytes;
-        _imageUrlCtrl.clear();
-        _useUrlMode   = false;
-      });
-    } catch (_) {
-      if (mounted) SnackHelper.error(context, 'Could not access image. Check permissions.');
-    }
   }
 
   Future<void> _pickDateTime({required bool isStart}) async {
@@ -130,21 +96,16 @@ class _EditEventPageState extends State<EditEventPage> {
       return;
     }
 
-    final fmt     = DateFormat('yyyy-MM-dd HH:mm:ss');
-    final hasFile = _pickedBytes != null && _pickedFile != null;
-    final urlVal  = _imageUrlCtrl.text.trim();
+    final fmt = DateFormat('yyyy-MM-dd HH:mm:ss');
 
     context.read<EventsBloc>().add(EventUpdateRequested(
-      id:            widget.event.id,
-      title:         _titleCtrl.text.trim(),
-      description:   _descCtrl.text.trim(),
-      capacity:      int.parse(_capacityCtrl.text.trim()),
-      startTime:     fmt.format(_startTime!),
-      endTime:       fmt.format(_endTime!),
-      imageUrl:      (!hasFile && urlVal.isNotEmpty) ? urlVal : null,
-      imageBytes:    hasFile ? _pickedBytes!.toList() : null,
-      imageFileName: hasFile ? _pickedFile!.name : null,
-      status:        _status,
+      id:          widget.event.id,
+      title:       _titleCtrl.text.trim(),
+      description: _descCtrl.text.trim(),
+      capacity:    int.parse(_capacityCtrl.text.trim()),
+      startTime:   fmt.format(_startTime!),
+      endTime:     fmt.format(_endTime!),
+      status:      _status,
     ));
   }
 
@@ -229,24 +190,6 @@ class _EditEventPageState extends State<EditEventPage> {
                       onChanged: (v) => setState(() => _status = v),
                     ),
                     const SizedBox(height: 20),
-                    _sectionLabel('Event Image'),
-                    const SizedBox(height: 12),
-                    _ImageSection(
-                      pickedBytes:    _pickedBytes,
-                      pickedFileName: _pickedFile?.name,
-                      urlCtrl:        _imageUrlCtrl,
-                      useUrlMode:     _useUrlMode,
-                      enabled:        !isLoading,
-                      onPickGallery:  _pickImage,
-                      onClear: () => setState(() {
-                        _pickedFile  = null;
-                        _pickedBytes = null;
-                        _imageUrlCtrl.clear();
-                      }),
-                      onToggleMode: () =>
-                          setState(() => _useUrlMode = !_useUrlMode),
-                    ),
-                    const SizedBox(height: 20),
                     _sectionLabel('Date & Time'),
                     const SizedBox(height: 12),
                     _DateTimeTile(
@@ -301,8 +244,6 @@ class _EditEventPageState extends State<EditEventPage> {
   }
 }
 
-// ── Status Selector ───────────────────────────────────────────────────────────
-
 class _StatusSelector extends StatelessWidget {
   final String value;
   final bool enabled;
@@ -317,27 +258,12 @@ class _StatusSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const options = [
-      (
-        'active',
-        'Active',
-        Icons.check_circle_outline,
-        AppColors.activeGreen,
-        AppColors.activeBg,
-      ),
-      (
-        'cancelled',
-        'Cancelled',
-        Icons.cancel_outlined,
-        AppColors.cancelledRed,
-        AppColors.cancelledBg,
-      ),
-      (
-        'completed',
-        'Completed',
-        Icons.flag_outlined,
-        AppColors.completedBlue,
-        AppColors.completedBg,
-      ),
+      ('active', 'Active', Icons.check_circle_outline,
+          AppColors.activeGreen, AppColors.activeBg),
+      ('cancelled', 'Cancelled', Icons.cancel_outlined,
+          AppColors.cancelledRed, AppColors.cancelledBg),
+      ('completed', 'Completed', Icons.flag_outlined,
+          AppColors.completedBlue, AppColors.completedBg),
     ];
 
     return Row(
@@ -379,246 +305,6 @@ class _StatusSelector extends StatelessWidget {
     );
   }
 }
-
-// ── Image Section ─────────────────────────────────────────────────────────────
-
-class _ImageSection extends StatelessWidget {
-  final Uint8List? pickedBytes;
-  final String? pickedFileName;
-  final TextEditingController urlCtrl;
-  final bool useUrlMode;
-  final bool enabled;
-  final VoidCallback onPickGallery;
-  final VoidCallback onClear;
-  final VoidCallback onToggleMode;
-
-  const _ImageSection({
-    required this.pickedBytes,
-    required this.pickedFileName,
-    required this.urlCtrl,
-    required this.useUrlMode,
-    required this.enabled,
-    required this.onPickGallery,
-    required this.onClear,
-    required this.onToggleMode,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Mode toggle
-        Row(
-          children: [
-            _chip('From Device', Icons.photo_library_outlined, !useUrlMode,
-                enabled ? onToggleMode : null),
-            const SizedBox(width: 10),
-            _chip('From URL', Icons.link_rounded, useUrlMode,
-                enabled ? onToggleMode : null),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        if (!useUrlMode) ...[
-          if (pickedBytes != null)
-            _previewBox(
-              label: pickedFileName ?? 'image',
-              onClear: onClear,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.memory(pickedBytes!,
-                    width: double.infinity,
-                    height: double.infinity,
-                    fit: BoxFit.cover),
-              ),
-            )
-          else
-            GestureDetector(
-              onTap: enabled ? onPickGallery : null,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border:
-                      Border.all(color: AppColors.primary.withOpacity(0.4)),
-                ),
-                child: Column(
-                  children: [
-                    const Icon(Icons.photo_library_outlined,
-                        size: 28, color: AppColors.primary),
-                    const SizedBox(height: 6),
-                    Text('Choose from Gallery',
-                        style: AppTextStyles.caption.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w500)),
-                  ],
-                ),
-              ),
-            ),
-        ] else ...[
-          StatefulBuilder(builder: (context, setSub) {
-            return Column(
-              children: [
-                TextFormField(
-                  controller: urlCtrl,
-                  enabled: enabled,
-                  style: AppTextStyles.body,
-                  keyboardType: TextInputType.url,
-                  onChanged: (_) => setSub(() {}),
-                  decoration: InputDecoration(
-                    labelText: 'Image URL',
-                    hintText: 'https://example.com/image.jpg',
-                    prefixIcon: const Icon(Icons.link_rounded),
-                    suffixIcon: urlCtrl.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear,
-                                color: AppColors.textMuted, size: 18),
-                            onPressed: () {
-                              urlCtrl.clear();
-                              setSub(() {});
-                            },
-                          )
-                        : null,
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return null;
-                    if (!v.startsWith('http')) return 'Enter a valid URL';
-                    return null;
-                  },
-                ),
-                if (urlCtrl.text.startsWith('http')) ...[
-                  const SizedBox(height: 10),
-                  _previewBox(
-                    label: 'Current image',
-                    onClear: null,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        urlCtrl.text,
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Center(
-                          child: Text('Cannot load image',
-                              style: TextStyle(color: AppColors.textMuted)),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            );
-          }),
-        ],
-
-        const SizedBox(height: 6),
-        Text(
-          'Leave unchanged to keep the current image.',
-          style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
-        ),
-      ],
-    );
-  }
-
-  Widget _chip(
-      String label, IconData icon, bool selected, VoidCallback? onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primary.withOpacity(0.15)
-              : AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected ? AppColors.primary : AppColors.cardBorder,
-            width: selected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon,
-                size: 15,
-                color: selected ? AppColors.primary : AppColors.textMuted),
-            const SizedBox(width: 6),
-            Text(label,
-                style: AppTextStyles.caption.copyWith(
-                  color: selected ? AppColors.primary : AppColors.textMuted,
-                  fontWeight:
-                      selected ? FontWeight.w600 : FontWeight.w400,
-                )),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _previewBox({
-    required Widget child,
-    required VoidCallback? onClear,
-    required String label,
-  }) {
-    return Stack(
-      children: [
-        Container(
-          height: 180,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.cardBorder),
-          ),
-          child: child,
-        ),
-        if (onClear != null)
-          Positioned(
-            top: 8,
-            right: 8,
-            child: GestureDetector(
-              onTap: onClear,
-              child: Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  shape: BoxShape.circle,
-                ),
-                child:
-                    const Icon(Icons.close, color: Colors.white, size: 16),
-              ),
-            ),
-          ),
-        Positioned(
-          bottom: 8,
-          left: 8,
-          child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.55),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              label,
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 11, fontFamily: 'DMSans'),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Date Time Tile ────────────────────────────────────────────────────────────
 
 class _DateTimeTile extends StatelessWidget {
   final String label;

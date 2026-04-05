@@ -1,5 +1,3 @@
-import '../../../../core/constants/api_constants.dart';
-
 class VenueModel {
   final int id;
   final String name;
@@ -71,7 +69,6 @@ class EventModel {
   final int currentAttendees;
   final DateTime startTime;
   final DateTime endTime;
-  final String? imageUrl;
   final VenueModel? venue;
   final OrganizerModel? organizer;
   final String? createdAt;
@@ -87,7 +84,6 @@ class EventModel {
     required this.currentAttendees,
     required this.startTime,
     required this.endTime,
-    this.imageUrl,
     this.venue,
     this.organizer,
     this.createdAt,
@@ -105,23 +101,12 @@ class EventModel {
       currentAttendees: json['current_attendees'] ?? 0,
       startTime: DateTime.parse(json['start_time']),
       endTime: DateTime.parse(json['end_time']),
-      imageUrl: json['image_url'],
       venue: json['venue'] != null ? VenueModel.fromJson(json['venue']) : null,
       organizer: json['organizer'] != null
           ? OrganizerModel.fromJson(json['organizer'])
           : null,
       createdAt: json['created_at'],
     );
-  }
-
-  /// Resolves the image URL — handles both absolute URLs and relative
-  /// storage paths returned by Laravel (e.g. /storage/events/abc.jpg).
-  String? get resolvedImageUrl {
-    if (imageUrl == null || imageUrl!.isEmpty) return null;
-    if (imageUrl!.startsWith('http')) return imageUrl;
-    // Strip /api suffix from baseUrl then append relative path
-    final base = ApiConstants.baseUrl.replaceFirst(RegExp(r'/api$'), '');
-    return '$base$imageUrl';
   }
 
   bool get isActive => status == 'active';
